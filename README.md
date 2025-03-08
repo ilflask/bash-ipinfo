@@ -59,6 +59,12 @@ The file should contain a list of IP addresses, one address per line:
 ...
 ```
 
+## Hostnames File Format
+The hostnames.txt file should contain a list of hostnames, separated by |.
+```
+yandex|google|microsoft
+```
+
 ## Results
 
 The results are saved in the ipinfo_results.log file in JSON format. The main information is also displayed in the
