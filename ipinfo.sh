@@ -1,59 +1,88 @@
 #!/bin/bash
 
-# Проверка наличия файла
+# Check for file presence
 if [ $# -lt 1 ]; then
-    echo "Использование: $0 <имя_файла_с_IP> [токен_ipinfo]"
+    echo "Usage: $0 <IP_file_name> [ipinfo_token]"
     exit 1
 fi
 
 FILE="$1"
 TOKEN="$2"
+HOSTNAMES_FILE="hostnames.txt"
 
-# Проверка существования файла
+# Colors
+WHITE='\033[0;0m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+HOSTNAMES=''
+
+if [ -f "$HOSTNAMES_FILE" ]; then
+    # Read hostnames from file
+    HOSTNAMES=$(grep -v "^$" "$HOSTNAMES_FILE" | tr '\n' '|')
+    HOSTNAMES=${HOSTNAMES%|} # Remove the last '|' character
+fi
+
+# Check for the existence of the IP file
 if [ ! -f "$FILE" ]; then
-    echo "Ошибка: файл $FILE не найден"
+    echo "Error: file $FILE not found"
     exit 1
 fi
 
-# Создаем директорию для результатов
+# Create a directory for results
 RESULTS_FILE="ipinfo_results.log"
 
-echo "Запрашиваем информацию для IP адресов из файла $FILE..."
+echo "Requesting information for IP addresses from file $FILE..."
 
-# Счетчик для отслеживания прогресса
+# Counter to track progress
 TOTAL=$(grep -v "^$" "$FILE" | wc -l)
 COUNTER=0
 
-# Обработка каждого IP адреса
+# Process each IP address
 while IFS= read -r ip || [[ -n "$ip" ]]; do
-    # Пропускаем пустые строки
+    # Skip empty lines
     [ -z "$ip" ] && continue
 
-    # Увеличиваем счетчик
+    # Increment counter
     ((COUNTER++))
 
-    # Вывод прогресса
-    echo -ne "Обработка: $COUNTER из $TOTAL IP-адресов (${ip}) [$(( COUNTER * 100 / TOTAL ))%]\r"
+    # Display progress
+    echo -ne "Processing: $COUNTER out of $TOTAL IP addresses (${ip}) [$(( COUNTER * 100 / TOTAL ))%]\r"
 
-    # Формируем запрос
+    # Form the request
     if [ -n "$TOKEN" ]; then
-        # С использованием токена
+        # Using token
         RESPONSE=$(curl -s "https://ipinfo.io/${ip}?token=${TOKEN}")
     else
-        # Без токена (ограниченный доступ)
+        # Without token (limited access)
         RESPONSE=$(curl -s "https://ipinfo.io/${ip}")
     fi
 
-    # Сохраняем результат в файл
+    # Save the result to a file
     echo "${RESPONSE}" >> "$RESULTS_FILE"
 
-    # Вывод основной информации в консоль
-    echo -e "\nИнформация о IP: $ip"
-    echo "$RESPONSE" | grep -E '"city"|"region"|"country"|"org"|"hostname"|"loc"'
+    # Determine the output color
+    if [[ $HOSTNAMES != "" ]]; then
+        HOSTNAME=$(echo "$RESPONSE" | grep -oP '"hostname":\s*"\K[^"]+')
+        if [[ -z "$HOSTNAME" ]]; then
+            COLOR=$ORANGE
+        elif [[ "$HOSTNAME" =~ $HOSTNAMES ]]; then
+            COLOR=$GREEN
+        else
+            COLOR=$RED
+        fi
+    else
+      COLOR=$WHITE
+    fi
+
+    # Display main information in the console
+    echo -e "${COLOR}\nInformation about IP: $ip${NC}"
+    echo -e "${COLOR}$(echo "$RESPONSE" | grep -E '"city"|"region"|"country"|"org"|"hostname"|"loc"')${NC}"
     echo "----------------------"
 
-    # Задержка, чтобы не превысить лимиты запросов
+    # Delay to avoid exceeding request limits
     sleep 1
 done < "$FILE"
 
-echo -e "\nОбработка завершена. Результаты сохранены в директории $RESULTS_FILE"
+echo -e "\nProcessing completed. Results saved in directory $RESULTS_FILE"
