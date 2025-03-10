@@ -32,6 +32,9 @@ fi
 
 # Create a directory for results
 RESULTS_FILE="ipinfo_results.log"
+RESULTS_FILE_GOOD="ipinfo_results_good.log"
+RESULTS_FILE_WARNING="ipinfo_results_warning.log"
+RESULTS_FILE_DANGER="ipinfo_results_danger.log"
 
 echo "Requesting information for IP addresses from file $FILE..."
 
@@ -66,10 +69,13 @@ while IFS= read -r ip || [[ -n "$ip" ]]; do
     if [[ $HOSTNAMES != "" ]]; then
         HOSTNAME=$(echo "$RESPONSE" | grep -oP '"hostname":\s*"\K[^"]+')
         if [[ -z "$HOSTNAME" ]]; then
+            echo "${RESPONSE}" >> "$RESULTS_FILE_WARNING"
             COLOR=$ORANGE
         elif [[ "$HOSTNAME" =~ $HOSTNAMES ]]; then
+            echo "${RESPONSE}" >> "$RESULTS_FILE_GOOD"
             COLOR=$GREEN
         else
+            echo "${RESPONSE}" >> "$RESULTS_FILE_DANGER"
             COLOR=$RED
         fi
     else
